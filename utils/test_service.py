@@ -18,15 +18,15 @@ def test_log_creation(log_dir):
     """Test that log files are being created."""
     log_path = Path(log_dir)
     if not log_path.exists():
-        print(f"❌ Log directory does not exist: {log_dir}")
+        print(f"[ERROR] Log directory does not exist: {log_dir}")
         return False
     
     log_files = list(log_path.glob('uptime_log_*.csv'))
     if not log_files:
-        print(f"❌ No log files found in {log_dir}")
+        print(f"[ERROR] No log files found in {log_dir}")
         return False
     
-    print(f"✓ Found {len(log_files)} log file(s) in {log_dir}")
+    print(f"[OK] Found {len(log_files)} log file(s) in {log_dir}")
     for log_file in log_files:
         print(f"  - {log_file.name}")
     
@@ -39,7 +39,7 @@ def test_log_format(log_dir):
     log_files = list(log_path.glob('uptime_log_*.csv'))
     
     if not log_files:
-        print("❌ No log files to test")
+        print("[ERROR] No log files to test")
         return False
     
     # Check the most recent log file
@@ -52,11 +52,11 @@ def test_log_format(log_dir):
             expected_header = "Timestamp,Status,Latency_ms,Outage_Duration_sec"
             
             if header != expected_header:
-                print(f"❌ Invalid log header: {header}")
+                print(f"[ERROR] Invalid log header: {header}")
                 print(f"   Expected: {expected_header}")
                 return False
             
-            print(f"✓ Log file has correct header format")
+            print(f"[OK] Log file has correct header format")
             
             # Read a few entries
             line_count = 0
@@ -66,18 +66,18 @@ def test_log_format(log_dir):
                     break
                 parts = line.strip().split(',')
                 if len(parts) != 4:
-                    print(f"❌ Invalid log entry: {line.strip()}")
+                    print(f"[ERROR] Invalid log entry: {line.strip()}")
                     return False
             
             if line_count > 0:
-                print(f"✓ Log entries have correct format ({line_count} entries checked)")
+                print(f"[OK] Log entries have correct format ({line_count} entries checked)")
             else:
-                print("⚠ No log entries found yet (service may have just started)")
+                print("[WARNING] No log entries found yet (service may have just started)")
             
             return True
     
     except Exception as e:
-        print(f"❌ Error reading log file: {e}")
+        print(f"[ERROR] Error reading log file: {e}")
         return False
 
 
@@ -91,23 +91,23 @@ def test_service_running():
         )
         
         if result.returncode == 0 and 'RUNNING' in result.stdout:
-            print("✓ Service is running")
+            print("[OK] Service is running")
             return True
         elif result.returncode == 0:
-            print("⚠ Service exists but is not running")
+            print("[WARNING] Service exists but is not running")
             print("  Use 'sc start InternetUptimeTracker' to start it")
             return False
         else:
-            print("⚠ Service is not installed")
+            print("[WARNING] Service is not installed")
             print("  Use 'uptime_tracker.exe install' to install it")
             return False
     
     except FileNotFoundError:
-        print("⚠ Cannot check service status (sc command not found)")
+        print("[WARNING] Cannot check service status (sc command not found)")
         print("  This is expected on non-Windows systems")
         return False
     except Exception as e:
-        print(f"❌ Error checking service status: {e}")
+        print(f"[ERROR] Error checking service status: {e}")
         return False
 
 
@@ -120,7 +120,7 @@ def monitor_logs(log_dir, duration=60):
     # Find the current log file
     log_files = list(log_path.glob('uptime_log_*.csv'))
     if not log_files:
-        print("❌ No log files found")
+        print("[ERROR] No log files found")
         return False
     
     log_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
@@ -156,7 +156,7 @@ def monitor_logs(log_dir, duration=60):
         print(f"\nMonitoring complete. {check_count} updates detected in {elapsed:.1f} seconds")
         
         if check_count == 0:
-            print("⚠ No new log entries detected. Service may not be running.")
+            print("[WARNING] No new log entries detected. Service may not be running.")
             return False
         
         return True
@@ -165,7 +165,7 @@ def monitor_logs(log_dir, duration=60):
         print("\n\nMonitoring stopped by user")
         return True
     except Exception as e:
-        print(f"❌ Error monitoring logs: {e}")
+        print(f"[ERROR] Error monitoring logs: {e}")
         return False
 
 
@@ -197,7 +197,7 @@ def run_all_tests(log_dir):
     total = len(results)
     
     for test_name, result in results:
-        status = "✓ PASS" if result else "✗ FAIL"
+        status = "[PASS]" if result else "[FAIL]"
         print(f"{status}: {test_name}")
     
     print(f"\nTotal: {passed}/{total} tests passed")
