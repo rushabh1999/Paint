@@ -1,0 +1,14 @@
+=== Daily Internet Uptime Summary ===
+
+Total Checks: 1440
+Successful Checks: 1425
+Failed Checks: 15
+Uptime Percentage: 98.96%
+Downtime Percentage: 1.04%
+
+=== Outage Statistics ===
+Number of Outages: 3
+Total Downtime: 900 seconds (15.00 minutes)
+Average Outage Duration: 300.00 seconds (5.00 minutes)
+Longest Outage: 600 seconds (10.00 minutes)
+Shortest Outage: 120 seconds (2.00 minutes)
