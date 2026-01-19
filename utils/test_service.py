@@ -241,6 +241,8 @@ def main():
         return 0 if test_log_creation(args.log_dir) else 1
     elif args.test == 'format':
         return 0 if test_log_format(args.log_dir) else 1
+    
+    return 1  # Should not reach here
 
 
 if __name__ == '__main__':

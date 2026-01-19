@@ -46,7 +46,7 @@ The Internet Uptime Tracker is a C-based Windows service designed to:
 Open a command prompt and navigate to the project directory:
 
 ```cmd
-cd /path/to/Paint
+cd C:\path\to\Paint
 make
 ```
 

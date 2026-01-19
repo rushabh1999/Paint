@@ -72,6 +72,8 @@ static void run_tracking_loop(void) {
     StateMachine state_machine;
     init_state_machine(&state_machine);
     
+    int last_summary_day = -1;  // Track last day we generated a summary
+    
     report_service_status(SERVICE_RUNNING, NO_ERROR, 0);
     
     while (WaitForSingleObject(stop_event, CHECK_INTERVAL_MS) == WAIT_TIMEOUT) {
@@ -93,10 +95,12 @@ static void run_tracking_loop(void) {
         
         log_entry(&entry);
         
-        // Generate daily summary at midnight
+        // Generate daily summary at midnight (once per day)
         time_t now = time(NULL);
         struct tm* tm_info = localtime(&now);
-        if (tm_info->tm_hour == 0 && tm_info->tm_min == 0) {
+        int current_day = tm_info->tm_yday;  // Day of year (0-365)
+        
+        if (tm_info->tm_hour == 0 && tm_info->tm_min == 0 && current_day != last_summary_day) {
             char summary_path[MAX_PATH];
             char date_str[32];
             strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_info);
@@ -105,6 +109,7 @@ static void run_tracking_loop(void) {
             DailyStatistics stats;
             if (generate_daily_summary(get_current_log_file(), &stats)) {
                 save_daily_summary(summary_path, &stats);
+                last_summary_day = current_day;
             }
         }
     }
