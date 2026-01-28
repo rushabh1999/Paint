@@ -54,6 +54,27 @@ char* get_baseline_path(const char* filename) {
         return NULL;
     }
     
+    // Get absolute path for uniqueness
+    char abs_path[PATH_MAX];
+    if (realpath(filename, abs_path) == NULL) {
+        // If realpath fails, use the provided filename
+        strncpy(abs_path, filename, PATH_MAX - 1);
+        abs_path[PATH_MAX - 1] = '\0';
+    }
+    
+    // Calculate MD5 hash of absolute path for uniqueness
+    unsigned char path_hash[16];
+    EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+    EVP_DigestInit_ex(mdctx, EVP_md5(), NULL);
+    EVP_DigestUpdate(mdctx, abs_path, strlen(abs_path));
+    EVP_DigestFinal_ex(mdctx, path_hash, NULL);
+    EVP_MD_CTX_free(mdctx);
+    
+    // Convert first 4 bytes of hash to hex string
+    char hash_str[9];
+    snprintf(hash_str, sizeof(hash_str), "%02x%02x%02x%02x", 
+             path_hash[0], path_hash[1], path_hash[2], path_hash[3]);
+    
     // Extract just the filename from the path
     char* filename_copy = strdup(filename);
     char* base = basename(filename_copy);
@@ -65,7 +86,7 @@ char* get_baseline_path(const char* filename) {
         return NULL;
     }
     
-    snprintf(baseline_path, PATH_MAX, "%s/%s.baseline", config_path, base);
+    snprintf(baseline_path, PATH_MAX, "%s/%s.%s.baseline", config_path, base, hash_str);
     
     free(config_path);
     free(filename_copy);
@@ -81,6 +102,27 @@ char* get_hash_path(const char* filename) {
         return NULL;
     }
     
+    // Get absolute path for uniqueness
+    char abs_path[PATH_MAX];
+    if (realpath(filename, abs_path) == NULL) {
+        // If realpath fails, use the provided filename
+        strncpy(abs_path, filename, PATH_MAX - 1);
+        abs_path[PATH_MAX - 1] = '\0';
+    }
+    
+    // Calculate MD5 hash of absolute path for uniqueness
+    unsigned char path_hash[16];
+    EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+    EVP_DigestInit_ex(mdctx, EVP_md5(), NULL);
+    EVP_DigestUpdate(mdctx, abs_path, strlen(abs_path));
+    EVP_DigestFinal_ex(mdctx, path_hash, NULL);
+    EVP_MD_CTX_free(mdctx);
+    
+    // Convert first 4 bytes of hash to hex string
+    char hash_str[9];
+    snprintf(hash_str, sizeof(hash_str), "%02x%02x%02x%02x", 
+             path_hash[0], path_hash[1], path_hash[2], path_hash[3]);
+    
     // Extract just the filename from the path
     char* filename_copy = strdup(filename);
     char* base = basename(filename_copy);
@@ -92,7 +134,7 @@ char* get_hash_path(const char* filename) {
         return NULL;
     }
     
-    snprintf(hash_path, PATH_MAX, "%s/%s.hash", config_path, base);
+    snprintf(hash_path, PATH_MAX, "%s/%s.%s.hash", config_path, base, hash_str);
     
     free(config_path);
     free(filename_copy);
@@ -327,66 +369,20 @@ int detect_drift(const char* filepath, char* result_message, size_t message_size
         return -1;
     }
     
-    // First verify hash
-    char hash_message[1024];
-    int hash_result = verify_hash(filepath, hash_message, sizeof(hash_message));
+    free(baseline_path);
+    
+    // Verify hash - if hash matches, no drift exists
+    int hash_result = verify_hash(filepath, result_message, message_size);
     
     if (hash_result == 1) {
-        // Hash mismatch detected
-        snprintf(result_message, message_size, "%s", hash_message);
-        free(baseline_path);
+        // Hash mismatch detected - drift exists
         return 1;
     } else if (hash_result == -1) {
         // Error during hash verification
-        snprintf(result_message, message_size, "%s", hash_message);
-        free(baseline_path);
         return -1;
     }
     
-    // Compare with baseline
-    FILE* current_file = fopen(filepath, "rb");
-    if (!current_file) {
-        snprintf(result_message, message_size, "ERROR: Failed to open %s", filepath);
-        free(baseline_path);
-        return -1;
-    }
-    
-    FILE* baseline_file = fopen(baseline_path, "rb");
-    if (!baseline_file) {
-        snprintf(result_message, message_size, "ERROR: Failed to open baseline for %s", filepath);
-        fclose(current_file);
-        free(baseline_path);
-        return -1;
-    }
-    
-    char current_buffer[8192];
-    char baseline_buffer[8192];
-    size_t current_bytes, baseline_bytes;
-    int files_match = 1;
-    
-    while (1) {
-        current_bytes = fread(current_buffer, 1, sizeof(current_buffer), current_file);
-        baseline_bytes = fread(baseline_buffer, 1, sizeof(baseline_buffer), baseline_file);
-        
-        if (current_bytes != baseline_bytes || memcmp(current_buffer, baseline_buffer, current_bytes) != 0) {
-            files_match = 0;
-            break;
-        }
-        
-        if (current_bytes == 0) {
-            break;
-        }
-    }
-    
-    fclose(current_file);
-    fclose(baseline_file);
-    free(baseline_path);
-    
-    if (files_match) {
-        snprintf(result_message, message_size, "OK: No drift detected for %s (hash verified)", filepath);
-        return 0;
-    } else {
-        snprintf(result_message, message_size, "DRIFT: File %s has drifted from baseline", filepath);
-        return 1;
-    }
+    // Hash verified - no drift
+    snprintf(result_message, message_size, "OK: No drift detected for %s (hash verified)", filepath);
+    return 0;
 }

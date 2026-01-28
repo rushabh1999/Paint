@@ -22,14 +22,20 @@ def init_config_dir():
 
 def get_baseline_path(filepath):
     """Get the baseline file path for a given file"""
+    # Use hash of full path to avoid collisions
+    filepath_abs = str(Path(filepath).resolve())
+    path_hash = hashlib.md5(filepath_abs.encode()).hexdigest()[:8]
     filename = Path(filepath).name
-    return CONFIG_DIR / f"{filename}.baseline"
+    return CONFIG_DIR / f"{filename}.{path_hash}.baseline"
 
 
 def get_hash_path(filepath):
     """Get the hash file path for a given file"""
+    # Use hash of full path to avoid collisions
+    filepath_abs = str(Path(filepath).resolve())
+    path_hash = hashlib.md5(filepath_abs.encode()).hexdigest()[:8]
     filename = Path(filepath).name
-    return CONFIG_DIR / f"{filename}.hash"
+    return CONFIG_DIR / f"{filename}.{path_hash}.hash"
 
 
 def calculate_file_hash(filepath, algorithm="sha256"):
@@ -131,29 +137,17 @@ def check_drift(filepath):
         print(f"ERROR: No baseline found for {filepath}. Run baseline command first.", file=sys.stderr)
         return False
     
-    # First verify hash
+    # Verify hash - if hash matches, file integrity is confirmed
     print("Verifying hash integrity...")
     hash_valid = verify_hash(filepath)
     
     if not hash_valid:
+        # Hash mismatch means drift detected
         return False
     
-    # Compare with baseline
-    print("\nChecking for drift from baseline...")
-    try:
-        with open(filepath, "rb") as current_file, open(baseline_path, "rb") as baseline_file:
-            current_content = current_file.read()
-            baseline_content = baseline_file.read()
-            
-            if current_content == baseline_content:
-                print(f"OK: No drift detected for {filepath} (hash verified)")
-                return True
-            else:
-                print(f"DRIFT: File {filepath} has drifted from baseline")
-                return False
-    except Exception as e:
-        print(f"ERROR: Failed to compare files: {e}", file=sys.stderr)
-        return False
+    # Hash verified - no drift
+    print(f"\nOK: No drift detected for {filepath} (hash verified)")
+    return True
 
 
 def list_monitored_files():
@@ -169,10 +163,14 @@ def list_monitored_files():
     
     print(f"Monitored files ({len(baseline_files)}):")
     for baseline in baseline_files:
-        filename = baseline.stem.replace(".baseline", "")
-        hash_path = CONFIG_DIR / f"{filename}.hash"
+        # Remove .baseline extension to get the base name
+        filename = baseline.name[:-9]  # Remove ".baseline"
+        # Extract the actual filename (before the hash)
+        parts = filename.rsplit('.', 1)
+        display_name = parts[0] if len(parts) > 1 else filename
+        hash_path = baseline.with_suffix('.hash')
         has_hash = "✓" if hash_path.exists() else "✗"
-        print(f"  {has_hash} {filename}")
+        print(f"  {has_hash} {display_name}")
 
 
 def main():
