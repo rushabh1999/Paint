@@ -1,0 +1,33 @@
+# Build artifacts
+backend/build/
+backend/bin/
+*.o
+*.so
+*.a
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+/tmp/
+*.log
+
+# Config
+.config/
