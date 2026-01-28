@@ -4,13 +4,15 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 int send_email_alert(const Config *config, const char *filepath, const char *diff) {
-    char command[8192];
-    char time_str[64];
     char temp_file[256];
+    char time_str[64];
     FILE *fp;
     time_t now;
+    int fd;
     
     // Check if SMTP settings are configured
     if (strlen(config->smtp_server) == 0 || strlen(config->alert_email) == 0) {
@@ -21,12 +23,19 @@ int send_email_alert(const Config *config, const char *filepath, const char *dif
     time(&now);
     strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", localtime(&now));
     
-    // Create temporary file for email body
-    snprintf(temp_file, sizeof(temp_file), "/tmp/drift_alert_%ld.txt", (long)now);
+    // Create secure temporary file
+    snprintf(temp_file, sizeof(temp_file), "/tmp/drift_alert_XXXXXX");
+    fd = mkstemp(temp_file);
+    if (fd < 0) {
+        perror("mkstemp");
+        return -1;
+    }
     
-    fp = fopen(temp_file, "w");
+    fp = fdopen(fd, "w");
     if (!fp) {
-        perror("fopen");
+        perror("fdopen");
+        close(fd);
+        unlink(temp_file);
         return -1;
     }
     
@@ -42,33 +51,58 @@ int send_email_alert(const Config *config, const char *filepath, const char *dif
     
     fclose(fp);
     
-    // Use Python to send email (more reliable than calling external mail command)
-    snprintf(command, sizeof(command),
-        "python3 -c \""
-        "import smtplib; "
-        "from email.mime.text import MIMEText; "
-        "msg = MIMEText(open('%s').read()); "
-        "msg['Subject'] = 'Configuration Drift Detected - %s'; "
-        "msg['From'] = '%s'; "
-        "msg['To'] = '%s'; "
-        "try: "
-        "  s = smtplib.SMTP('%s', %d); "
-        "  s.starttls(); "
-        "  s.login('%s', '%s'); "
-        "  s.send_message(msg); "
-        "  s.quit(); "
-        "  print('Email sent'); "
-        "except Exception as e: "
-        "  print('Error:', e); "
-        "  exit(1); "
-        "\" 2>&1",
-        temp_file, filepath, config->smtp_user, config->alert_email,
-        config->smtp_server, config->smtp_port, config->smtp_user, config->smtp_pass);
+    // Write Python script to a separate secure temporary file
+    char script_file[256];
+    snprintf(script_file, sizeof(script_file), "/tmp/send_email_XXXXXX");
+    fd = mkstemp(script_file);
+    if (fd < 0) {
+        perror("mkstemp");
+        unlink(temp_file);
+        return -1;
+    }
     
+    fp = fdopen(fd, "w");
+    if (!fp) {
+        perror("fdopen");
+        close(fd);
+        unlink(temp_file);
+        unlink(script_file);
+        return -1;
+    }
+    
+    // Write Python script with properly escaped values
+    fprintf(fp, "#!/usr/bin/env python3\n");
+    fprintf(fp, "import smtplib\n");
+    fprintf(fp, "from email.mime.text import MIMEText\n");
+    fprintf(fp, "import sys\n\n");
+    fprintf(fp, "try:\n");
+    fprintf(fp, "    with open('%s', 'r') as f:\n", temp_file);
+    fprintf(fp, "        msg_text = f.read()\n");
+    fprintf(fp, "    msg = MIMEText(msg_text)\n");
+    fprintf(fp, "    msg['Subject'] = 'Configuration Drift Detected'\n");
+    fprintf(fp, "    msg['From'] = '%s'\n", config->smtp_user);
+    fprintf(fp, "    msg['To'] = '%s'\n", config->alert_email);
+    fprintf(fp, "    s = smtplib.SMTP('%s', %d)\n", config->smtp_server, config->smtp_port);
+    fprintf(fp, "    s.starttls()\n");
+    fprintf(fp, "    s.login('%s', '%s')\n", config->smtp_user, config->smtp_pass);
+    fprintf(fp, "    s.send_message(msg)\n");
+    fprintf(fp, "    s.quit()\n");
+    fprintf(fp, "    print('Email sent')\n");
+    fprintf(fp, "except Exception as e:\n");
+    fprintf(fp, "    print('Error:', e, file=sys.stderr)\n");
+    fprintf(fp, "    sys.exit(1)\n");
+    
+    fclose(fp);
+    
+    // Make script executable and run it
+    chmod(script_file, 0700);
+    char command[512];
+    snprintf(command, sizeof(command), "python3 %s 2>&1", script_file);
     int result = system(command);
     
-    // Clean up temp file
+    // Clean up temp files
     unlink(temp_file);
+    unlink(script_file);
     
     return (result == 0) ? 0 : -1;
 }

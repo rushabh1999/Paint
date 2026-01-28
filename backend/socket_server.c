@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/inotify.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <fcntl.h>
 
@@ -41,6 +42,9 @@ int start_socket_server(Config *config) {
         close(server_fd);
         return -1;
     }
+    
+    // Set restrictive permissions on socket for security
+    chmod(SOCKET_PATH, 0600);
     
     printf("Socket server listening on %s\n", SOCKET_PATH);
     
@@ -92,6 +96,7 @@ void handle_client_command(int client_fd, Config *config, int inotify_fd) {
                 snprintf(response, sizeof(response), "ERROR: Maximum files limit reached\n");
             } else {
                 strncpy(config->files[config->count].path, filepath, MAX_PATH_LEN - 1);
+                config->files[config->count].path[MAX_PATH_LEN - 1] = '\0';
                 config->files[config->count].monitoring = true;
                 config->files[config->count].wd = add_watch(inotify_fd, filepath);
                 config->count++;
@@ -161,10 +166,14 @@ void handle_client_command(int client_fd, Config *config, int inotify_fd) {
         
         if (server && port_str && user && pass && email) {
             strncpy(config->smtp_server, server, 255);
+            config->smtp_server[255] = '\0';
             config->smtp_port = atoi(port_str);
             strncpy(config->smtp_user, user, 255);
+            config->smtp_user[255] = '\0';
             strncpy(config->smtp_pass, pass, 255);
+            config->smtp_pass[255] = '\0';
             strncpy(config->alert_email, email, 255);
+            config->alert_email[255] = '\0';
             save_config(config);
             snprintf(response, sizeof(response), "OK: SMTP settings updated\n");
         } else {

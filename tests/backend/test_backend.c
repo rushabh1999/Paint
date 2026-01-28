@@ -196,8 +196,8 @@ int test_no_drift() {
     // Detect drift (should be none)
     int result = detect_drift(test_file, diff_output, sizeof(diff_output));
     
-    if (result == 0) {
-        printf("  FAIL: No drift should be detected\n");
+    if (result != -1) {
+        printf("  FAIL: No drift should be detected (expected -1, got %d)\n", result);
         return 0;
     }
     

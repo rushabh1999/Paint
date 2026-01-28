@@ -79,6 +79,7 @@ int load_config(Config *config) {
             item = cJSON_GetArrayItem(files, i);
             if (cJSON_IsString(item)) {
                 strncpy(config->files[i].path, item->valuestring, MAX_PATH_LEN - 1);
+                config->files[i].path[MAX_PATH_LEN - 1] = '\0';
                 config->files[i].monitoring = true;
                 config->files[i].wd = -1;
             }
@@ -91,6 +92,7 @@ int load_config(Config *config) {
         item = cJSON_GetObjectItem(smtp, "server");
         if (item && cJSON_IsString(item)) {
             strncpy(config->smtp_server, item->valuestring, 255);
+            config->smtp_server[255] = '\0';
         }
         
         item = cJSON_GetObjectItem(smtp, "port");
@@ -101,16 +103,19 @@ int load_config(Config *config) {
         item = cJSON_GetObjectItem(smtp, "user");
         if (item && cJSON_IsString(item)) {
             strncpy(config->smtp_user, item->valuestring, 255);
+            config->smtp_user[255] = '\0';
         }
         
         item = cJSON_GetObjectItem(smtp, "password");
         if (item && cJSON_IsString(item)) {
             strncpy(config->smtp_pass, item->valuestring, 255);
+            config->smtp_pass[255] = '\0';
         }
         
         item = cJSON_GetObjectItem(smtp, "alert_email");
         if (item && cJSON_IsString(item)) {
             strncpy(config->alert_email, item->valuestring, 255);
+            config->alert_email[255] = '\0';
         }
     }
     
@@ -162,6 +167,9 @@ int save_config(const Config *config) {
     
     fprintf(fp, "%s", json_str);
     fclose(fp);
+    
+    // Set restrictive permissions to protect sensitive data
+    chmod(config_path, 0600);
     
     cJSON_Delete(json);
     free(json_str);

@@ -4,6 +4,10 @@ backend/drift_detector
 backend/cJSON.c
 backend/cJSON.h
 
+# Test binaries
+tests/backend/test_backend
+tests/backend/*.o
+
 # Python
 __pycache__/
 *.py[cod]
