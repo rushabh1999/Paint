@@ -1,0 +1,38 @@
+# Build artifacts
+backend/*.o
+backend/drift_detector
+backend/cJSON.c
+backend/cJSON.h
+
+# Test binaries
+tests/backend/test_backend
+tests/backend/*.o
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+/tmp/
+
+# Test artifacts
+.coverage
+htmlcov/
